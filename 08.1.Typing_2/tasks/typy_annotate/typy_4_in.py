@@ -1,39 +1,17 @@
+import numbers
 import typing as tp
 
+# T = tp.TypeVar('T', tp.Optional[str], tp.Optional[int], tp.Optional[float])
+U = tp.TypeVar('U', str, numbers.Real, int)
 
-@tp.overload
-def f(container: list[int], item: int) -> tp.Optional[int]: ...
 
-@tp.overload
-def f(container: set[int], item: int) -> tp.Optional[int]: ...
-
-@tp.overload
-def f(container: str, item: str) -> tp.Optional[str]: ...
-
-@tp.overload
-def f(container: list[float], item: float) -> tp.Optional[float]: ...
-
-@tp.overload
-def f(container: set[float], item: float) -> tp.Optional[float]: ...
-
-@tp.overload
-def f(container: list[str], item: str) -> tp.Optional[str]: ...
-
-@tp.overload
-def f(container: set[str], item: str) -> tp.Optional[str]: ...
-
-@tp.overload
-def f(container: object, item: int) -> tp.Optional[int]: ...
-
-@tp.overload
-def f(container: object, item: str) -> tp.Optional[str]: ...
-
-def f(container: object, item: object) -> tp.Optional[object]:
-    return item if item in container else None  # type: ignore
+def f(a: tp.Container[U], b: U) -> tp.Optional[U]:
+    return b if b in a else None
 
 
 TEST_SAMPLES = """
 # SUCCESS
+
 a: float | None
 a = f([1, 2, 3], 1)
 if a is not None:
@@ -42,6 +20,7 @@ if a is not None:
 # SUCCESS
 a: float | None
 a = f({1, 2, 3}, 1)
+
 
 # SUCCESS
 a: str | None
@@ -58,8 +37,10 @@ a = f(A(), 10)
 b: str | None
 b = f(A(), "qwerty")
 
+
 # ERROR
 f([1, 2, 3], "h")
+
 
 # ERROR
 f([1, 2, 3], 1.3)
