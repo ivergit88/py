@@ -22,4 +22,3 @@ class R(float):
 
 f(R(1))
 """
-
