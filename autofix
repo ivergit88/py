@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$DIR/shad_env/bin/activate"
+cd "$DIR"
+
+echo "========================================="
+echo "🔧 АВТОМАТИЧЕСКОЕ ИСПРАВЛЕНИЕ СТИЛЯ"
+echo "========================================="
+
+if [ -z "$1" ]; then
+    echo "❌ Укажи путь к задаче!"
+    echo "Пример: ./autofix 01.2.BasicTypes/tasks/hello_world/"
+    exit 1
+fi
+
+TASK_PATH=$1
+
+echo "🔧 Запуск ruff fix для $TASK_PATH"
+ruff check --fix $TASK_PATH
+
+echo "✅ Исправление стиля завершено!"

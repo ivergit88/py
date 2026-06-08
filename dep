@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+import os
+import sys
+import shutil
+import subprocess
+import time
+from pathlib import Path
+
+# ===== НАСТРОЙКИ =====
+ASK_BEFORE_EACH = True   # Спрашивать перед каждой задачей
+DELAY_SECONDS = 3        # Задержка между задачами (сек)
+# =====================
+
+REPO_ROOT = os.path.expanduser("~/python-course/iver88")
+
+def ensure_newline_at_end(file_path):
+    """Добавляет перевод строки в конец файла, если его нет."""
+    with open(file_path, 'rb') as f:
+        f.seek(0, 2)
+        if f.tell() == 0:
+            return
+        f.seek(-1, 2)
+        last_char = f.read(1)
+        if last_char != b'\n':
+            with open(file_path, 'ab') as f2:
+                f2.write(b'\n')
+            print(f"   ➕ Добавлен перевод строки в {file_path}")
+
+def find_task_folder(topic, task_name):
+    """Ищет папку задачи в репозитории."""
+    candidate = os.path.join(REPO_ROOT, topic, "tasks", task_name)
+    return candidate if os.path.isdir(candidate) else None
+
+def run_autofix(task_path):
+    """Запускает ruff --fix для задачи."""
+    print(f"   🔧 Автоисправление стиля...")
+    subprocess.run(
+        f"cd {REPO_ROOT} && source shad_env/bin/activate && ruff check --fix {task_path}",
+        shell=True,
+        executable='/bin/bash',
+        capture_output=True
+    )
+
+def push_task(folder, task_name):
+    """Пушит задачу (с автофиксом и пустым коммитом если надо)."""
+    os.chdir(folder)
+    print(f"  📍 Перешёл в {folder}")
+    
+    # Добавляем изменения
+    subprocess.run(["git", "add", "."], check=True)
+    
+    # Проверяем изменения
+    result = subprocess.run(["git", "diff", "--cached", "--quiet"], check=False)
+    if result.returncode == 0:
+        print("  ⏭️  Нет изменений после автофикса, делаю пустой коммит")
+        subprocess.run(["git", "commit", "--allow-empty", "-m", f"Solve {task_name}"], check=True)
+    else:
+        subprocess.run(["git", "commit", "-m", f"Solve {task_name}"], check=True)
+    
+    subprocess.run(["git", "push", "origin", "main"], check=True)
+    print(f"  ✅ Задача {task_name} отправлена")
+    return True
+
+def main():
+    if len(sys.argv) < 2:
+        print("Использование: ./deploy_all_with_fix.py <путь_к_папке_с_решениями>")
+        sys.exit(1)
+
+    src_dir = sys.argv[1]
+    if not os.path.isdir(src_dir):
+        print(f"❌ Папка {src_dir} не существует")
+        sys.exit(1)
+
+    # Собираем все .py файлы
+    all_py_files = []
+    for root, dirs, files in os.walk(src_dir):
+        for file in files:
+            if file.endswith(".py"):
+                all_py_files.append(os.path.join(root, file))
+
+    if not all_py_files:
+        print("❌ В папке нет .py файлов")
+        return
+
+    print(f"🔍 Найдено файлов: {len(all_py_files)}")
+    for f in sorted(all_py_files):
+        print(f"   {os.path.relpath(f, src_dir)}")
+
+    resp = input("\nПродолжить? (y/N): ").strip().lower()
+    if resp != 'y':
+        print("Отменено")
+        return
+
+    success = []
+    failed = []
+
+    for idx, src_file in enumerate(sorted(all_py_files), 1):
+        src_path = Path(src_file)
+        rel_dir = os.path.relpath(src_path.parent, src_dir)
+        if rel_dir == '.':
+            print(f"\n⚠️ Файл {src_path.name} в корне, пропускаю")
+            continue
+
+        topic = rel_dir.split(os.sep)[0]
+        task_name = src_path.stem
+
+        print(f"\n[{idx}/{len(all_py_files)}] {topic} / {task_name}.py")
+
+        dest_folder = find_task_folder(topic, task_name)
+        if not dest_folder:
+            print(f"   ⚠️ Папка задачи не найдена, пропускаю")
+            failed.append(f"{topic}/{task_name}")
+            continue
+
+        dest_file = Path(dest_folder) / src_path.name
+
+        # Копируем файл
+        print(f"   📄 Копирую в {dest_file}")
+        shutil.copy2(src_file, dest_file)
+
+        # Добавляем перевод строки
+        ensure_newline_at_end(dest_file)
+
+        # Автофикс через ruff
+        task_path = f"{topic}/tasks/{task_name}"
+        run_autofix(task_path)
+
+        if ASK_BEFORE_EACH:
+            ans = input("   Пушить? (y/n/q): ").strip().lower()
+            if ans == 'q':
+                print("   ⏹️ Остановка")
+                break
+            elif ans != 'y':
+                print("   ⏭️ Пропускаю")
+                continue
+
+        try:
+            push_task(dest_folder, task_name)
+            success.append(f"{topic}/{task_name}")
+        except subprocess.CalledProcessError as e:
+            print(f"   ❌ Ошибка git: {e}")
+            failed.append(f"{topic}/{task_name}")
+
+        # Задержка перед следующей
+        if idx < len(all_py_files) and DELAY_SECONDS > 0:
+            print(f"   ⏳ Жду {DELAY_SECONDS} сек...")
+            time.sleep(DELAY_SECONDS)
+
+    print("\n🎉 Результаты:")
+    print(f"✅ Успешно: {len(success)}")
+    for s in success:
+        print(f"   {s}")
+    if failed:
+        print(f"❌ Не удалось: {len(failed)}")
+        for f in failed:
+            print(f"   {f}")
+
+if __name__ == "__main__":
+    main()

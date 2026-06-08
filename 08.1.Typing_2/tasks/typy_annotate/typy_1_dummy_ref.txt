@@ -1,0 +1,8 @@
+import numbers
+import typing as t
+
+T = t.TypeVar("T", bound=numbers.Real)
+
+def f(a: T) -> T:  # placeholder
+    return a
+

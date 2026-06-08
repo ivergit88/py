@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull)",
+      "Bash(./check.sh)",
+      "Bash(./autofix)",
+      "Bash(./curtask *)",
+      "Bash(./pushtask *)"
+    ]
+  },
+  "$version": 4
+}
