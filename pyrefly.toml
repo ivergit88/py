@@ -2,9 +2,7 @@ project-excludes = [
     "**/tests/",
     "**/.tmp/",
     "**/.venv/",
-    "*.ipynb",
-    "**/typy_protocol/**",
-    "**/typy_generic/**"
+    "*.ipynb"
 ]
 ignore-missing-imports = ["*"]
 untyped-def-behavior = "skip-and-infer-return-any"
